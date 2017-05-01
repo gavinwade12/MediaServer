@@ -33,7 +33,6 @@ func (w *worker) start() {
 	log.Println("Worker started.")
 	go func() {
 		for {
-			log.Println("Waiting for work.")
 			select {
 			case file := <-workQueue:
 				w.convert(file)

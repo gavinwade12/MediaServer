@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -49,19 +50,6 @@ func uploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie, err := r.Cookie(authCookieName)
-	if err != nil {
-		log.Printf("Error retrieving auth cookie: %s\n", err.Error())
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	if cookie.Value != cookieValue {
-		log.Printf("Invalid cookie value: %s\n", cookie.Value)
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
 	r.ParseMultipartForm(maxMemory)
 	uploadFile, header, err := r.FormFile(formFileName)
 	if err != nil {
@@ -72,7 +60,19 @@ func uploadMedia(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Uploading file: %s\n", header.Filename)
 	defer uploadFile.Close()
 
-	destFile, err := os.OpenFile(mediaDirectoryPath+header.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+	destFilePath := mediaDirectoryPath + header.Filename
+	if _, err := os.Stat(destFilePath); err == nil {
+		log.Printf("Renaming due to existing file: %s", header.Filename)
+		for count := 1; !os.IsNotExist(err); count++ {
+			filename := header.Filename[:len(header.Filename)-4]
+			filename += "(" + strconv.Itoa(count) + ")"
+			filename += header.Filename[len(header.Filename)-4:]
+			destFilePath = mediaDirectoryPath + filename
+			_, err = os.Stat(destFilePath)
+		}
+	}
+
+	destFile, err := os.OpenFile(destFilePath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		log.Printf(openDestFileErrorFormat, err.Error())
 		http.Error(w, fmt.Sprintf(openDestFileErrorFormat, err.Error()), http.StatusInternalServerError)
@@ -81,12 +81,11 @@ func uploadMedia(w http.ResponseWriter, r *http.Request) {
 	defer destFile.Close()
 
 	io.Copy(destFile, uploadFile)
-	log.Printf("File uploaded: %s", header.Filename)
+	log.Printf("File uploaded: %s", destFilePath)
 
-	if strings.HasSuffix(strings.ToLower(header.Filename), ".nef") {
-		file := mediaDirectoryPath + header.Filename
-		log.Printf("Adding file to conversion queue: %s\n", file)
-		workQueue <- file
+	if strings.HasSuffix(strings.ToLower(destFilePath), ".nef") {
+		log.Printf("Adding file to conversion queue: %s\n", destFilePath)
+		workQueue <- destFilePath
 	}
 }
 

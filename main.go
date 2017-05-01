@@ -44,8 +44,34 @@ func init() {
 
 func main() {
 	http.Handle("/healthcheck", http.HandlerFunc(healthCheck))
-	http.Handle("/upload", http.HandlerFunc(uploadMedia))
+	http.Handle("/upload", cookieCheckMiddleware(http.HandlerFunc(uploadMedia)))
 	http.Handle("/login", http.HandlerFunc(login))
-	http.Handle("/", http.FileServer(http.Dir(mediaDirectoryPath)))
+	http.Handle("/", cookieCheckMiddleware(http.FileServer(http.Dir(mediaDirectoryPath))))
 	log.Fatal(http.ListenAndServe(":1998", nil))
+}
+
+func isValidCookie(r *http.Request) bool {
+	cookie, err := r.Cookie(authCookieName)
+	if err != nil {
+		log.Printf("Error retrieving auth cookie: %s\n", err.Error())
+		return false
+	}
+
+	if cookie.Value != cookieValue {
+		log.Printf("Invalid cookie value: %s\n", cookie.Value)
+		return false
+	}
+
+	return true
+}
+
+func cookieCheckMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isValidCookie(r) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		h.ServeHTTP(w, r)
+	})
 }
