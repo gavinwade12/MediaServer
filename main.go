@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// TODO: We could probably get these as flags, environment variables, or a config
 const (
 	mediaDirectoryPath  = "/home/gavin/pictures/nicole/"
 	maxWorkers          = 5

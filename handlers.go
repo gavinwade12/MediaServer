@@ -27,6 +27,8 @@ const (
 var templates *template.Template
 
 func init() {
+	// TODO: Obviously these could be a little prettier, but that's pretty low priority,
+	// not Go, and 'that gay css styling shit'
 	templates = template.Must(template.ParseFiles("login.html", "upload.html"))
 }
 
@@ -60,6 +62,9 @@ func uploadMedia(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Uploading file: %s\n", header.Filename)
 	defer uploadFile.Close()
 
+	// TODO: Change the directory structure of uploaded files. It should be something like:
+	// `mediaDirectoryPath`/<year>/<month>/<day>/fileExtension/fileName
+	// ex. `mediaDirectoryPath`/2017/05/05/NEF/newPhoto.NEF
 	destFilePath := mediaDirectoryPath + header.Filename
 	if _, err := os.Stat(destFilePath); err == nil {
 		log.Printf("Renaming due to existing file: %s", header.Filename)

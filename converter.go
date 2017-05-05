@@ -29,6 +29,8 @@ func newWorker() *worker {
 }
 
 //TODO: use another mechanism to prevent a blocking send on the channel (buffered channel?)
+// This probably won't matter too much right now since this isn't being used much. We could
+// just up the worker count for now, and address this problem when we implement batch uploads
 func (w *worker) start() {
 	log.Println("Worker started.")
 	go func() {
@@ -51,6 +53,12 @@ func (w *worker) stop() {
 func (w *worker) convert(file string) {
 	log.Printf("Converting file: %s\n", file)
 	start := time.Now()
+
+	// TODO: The DestDir needs to be updated to the same structure mentioned in the TODO in
+	// the upload handler. Obviously the file extension is always going to be JPG. I don't know
+	// that we have the option to change the name of the file the 3rd party lib creates, but that
+	// would be nice as well. It currently appends some weird _extracted+some+other+jibberish to
+	// the end of the filename.
 	info := &rawparser.RawFileInfo{
 		File:    file,
 		DestDir: mediaDirectoryPath,
