@@ -27,42 +27,39 @@ type Authentication struct {
 
 var (
 	authentication Authentication
-	configuration  Configuration
+	configuration  *Configuration
 	workers        []*worker
 )
 
 func init() {
-	configurationFile, error := os.Open(configurationFileName)
-	if error != nil {
-		log.Printf("Error reading file: %s\n", error.Error())
-	} else {
-		configurationDecoder := json.NewDecoder(configurationFile)
-		configuration := Configuration{}
-		err := configurationDecoder.Decode(&configuration)
-		log.Printf("configuration: %v\n", configuration)
-		if err != nil {
-			log.Printf("Error decoding file: %s\n", error.Error())
-		} else {
-			credentialsfile, error := os.Open(configuration.CredentialsFileName)
-			if error != nil {
-				log.Printf("Error reading file: %s\n", error.Error())
-			} else {
-				credentialsDecoder := json.NewDecoder(credentialsfile)
-				authentication := Authentication{}
-				err := credentialsDecoder.Decode(&authentication)
-				log.Printf("authentication: %v\n", authentication)
+	// It's fine if we just shut down for now on error getting the config info setup.
+	// In the future, we could just set up some defaults in here.
+	configurationFile, err := os.Open(configurationFileName)
+	if err != nil {
+		log.Printf("Error reading config file: %s\nShutting down.\n", err.Error())
+		panic(err)
+	}
 
-				if err != nil {
-					log.Printf("Error decoding file: %s\n", error.Error())
-				} else {
-					for i := 0; i < configuration.MaxWorkers; i++ {
-						w := newWorker()
-						workers = append(workers, w)
-						w.start()
-					}
-				}
-			}
-		}
+	if err = json.NewDecoder(configurationFile).Decode(&configuration); err != nil {
+		log.Printf("Error decoding config file: %s\nShutting down.\n", err.Error())
+		panic(err)
+	}
+
+	credentialsfile, err := os.Open(configuration.CredentialsFileName)
+	if err != nil {
+		log.Printf("Error reading credentials file: %s\nShutting down.\n", err.Error())
+		panic(err)
+	}
+
+	if err = json.NewDecoder(credentialsfile).Decode(&authentication); err != nil {
+		log.Printf("Error decoding credentials file: %s\nShutting down.\n", err.Error())
+		panic(err)
+	}
+
+	for i := 0; i < configuration.MaxWorkers; i++ {
+		w := newWorker()
+		workers = append(workers, w)
+		w.start()
 	}
 }
 
