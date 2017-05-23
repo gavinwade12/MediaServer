@@ -65,14 +65,14 @@ func uploadMedia(w http.ResponseWriter, r *http.Request) {
 	// TODO: Change the directory structure of uploaded files. It should be something like:
 	// `mediaDirectoryPath`/<year>/<month>/<day>/fileExtension/fileName
 	// ex. `mediaDirectoryPath`/2017/05/05/NEF/newPhoto.NEF
-	destFilePath := mediaDirectoryPath + header.Filename
+	destFilePath := configuration.MediaDirectoryPath + header.Filename
 	if _, err := os.Stat(destFilePath); err == nil {
 		log.Printf("Renaming due to existing file: %s", header.Filename)
 		for count := 1; !os.IsNotExist(err); count++ {
 			filename := header.Filename[:len(header.Filename)-4]
 			filename += "(" + strconv.Itoa(count) + ")"
 			filename += header.Filename[len(header.Filename)-4:]
-			destFilePath = mediaDirectoryPath + filename
+			destFilePath = configuration.MediaDirectoryPath + filename
 			_, err = os.Stat(destFilePath)
 		}
 	}
@@ -118,7 +118,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	u := r.Form.Get("username")
 	p := r.Form.Get("password")
-	if u != username || p != password {
+	if u != authentication.Username || p != authentication.Password {
 		log.Printf("Bad login attempt. Username: %s, Password: %s\n", u, p)
 		http.Error(w, "Username and password don't match", http.StatusUnauthorized)
 		return
@@ -127,7 +127,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 	cookie := &http.Cookie{
 		Name:    authCookieName,
 		Expires: time.Now().Add(authCookieDuration).UTC(),
-		Value:   cookieValue,
+		Value:   authentication.CookieValue,
 	}
 	http.SetCookie(w, cookie)
 	log.Println("Successful Login.")

@@ -2,44 +2,67 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
 
-// TODO: We could probably get these as flags, environment variables, or a config
 const (
-	mediaDirectoryPath  = "/home/gavin/pictures/nicole/"
-	maxWorkers          = 5
-	credentialsFileName = "cred.json"
+	configurationFileName = "config.json"
 )
+
+// Configuration struct for containing values from configuration file.
+type Configuration struct {
+	CredentialsFileName string
+	MaxWorkers          int
+	MediaDirectoryPath  string
+}
+
+// Authentication struct for containing values for authentication file.
+type Authentication struct {
+	CookieValue string
+	Password    string
+	Username    string
+}
 
 var (
-	workers     []*worker
-	username    string
-	password    string
-	cookieValue string
+	authentication Authentication
+	configuration  Configuration
+	workers        []*worker
 )
 
 func init() {
-	for i := 0; i < maxWorkers; i++ {
-		w := newWorker()
-		workers = append(workers, w)
-		w.start()
-	}
-
-	data, err := ioutil.ReadFile(credentialsFileName)
-	if err == nil {
-		temp := make(map[string]string)
-		if err = json.Unmarshal(data, &temp); err != nil {
-			log.Printf("Error processing credentials data: %s\n", err.Error())
-		}
-
-		username = temp["username"]
-		password = temp["password"]
-		cookieValue = temp["cookie"]
+	configurationFile, error := os.Open(configurationFileName)
+	if error != nil {
+		log.Printf("Error reading file: %s\n", error.Error())
 	} else {
-		log.Printf("Error reading file: %s\n", err.Error())
+		configurationDecoder := json.NewDecoder(configurationFile)
+		configuration := Configuration{}
+		err := configurationDecoder.Decode(&configuration)
+		log.Printf("configuration: %v\n", configuration)
+		if err != nil {
+			log.Printf("Error decoding file: %s\n", error.Error())
+		} else {
+			credentialsfile, error := os.Open(configuration.CredentialsFileName)
+			if error != nil {
+				log.Printf("Error reading file: %s\n", error.Error())
+			} else {
+				credentialsDecoder := json.NewDecoder(credentialsfile)
+				authentication := Authentication{}
+				err := credentialsDecoder.Decode(&authentication)
+				log.Printf("authentication: %v\n", authentication)
+
+				if err != nil {
+					log.Printf("Error decoding file: %s\n", error.Error())
+				} else {
+					for i := 0; i < configuration.MaxWorkers; i++ {
+						w := newWorker()
+						workers = append(workers, w)
+						w.start()
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -47,7 +70,7 @@ func main() {
 	http.Handle("/healthcheck", http.HandlerFunc(healthCheck))
 	http.Handle("/upload", cookieCheckMiddleware(http.HandlerFunc(uploadMedia)))
 	http.Handle("/login", http.HandlerFunc(login))
-	http.Handle("/", cookieCheckMiddleware(http.FileServer(http.Dir(mediaDirectoryPath))))
+	http.Handle("/", cookieCheckMiddleware(http.FileServer(http.Dir(configuration.MediaDirectoryPath))))
 	log.Fatal(http.ListenAndServe(":1998", nil))
 }
 
@@ -58,7 +81,7 @@ func isValidCookie(r *http.Request) bool {
 		return false
 	}
 
-	if cookie.Value != cookieValue {
+	if cookie.Value != authentication.CookieValue {
 		log.Printf("Invalid cookie value: %s\n", cookie.Value)
 		return false
 	}

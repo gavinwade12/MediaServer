@@ -61,7 +61,7 @@ func (w *worker) convert(file string) {
 	// the end of the filename.
 	info := &rawparser.RawFileInfo{
 		File:    file,
-		DestDir: mediaDirectoryPath,
+		DestDir: configuration.MediaDirectoryPath,
 		Quality: jpegQuality,
 	}
 

@@ -1,0 +1,5 @@
+{
+    "credentialsFileName": "cred.json",
+    "maxWorkers": 5,
+    "mediaDirectoryPath": "/home/gavin/pictures/nicole/"
+}
