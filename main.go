@@ -26,7 +26,7 @@ type Authentication struct {
 }
 
 var (
-	authentication Authentication
+	authentication *Authentication
 	configuration  *Configuration
 	workers        []*worker
 )
